@@ -1,0 +1,15 @@
+plugin:
+    name: 'dnc.cnc24h::lang.plugin.name'
+    description: 'dnc.cnc24h::lang.plugin.description'
+    author: Dnc
+    icon: oc-icon-adjust
+    homepage: ''
+navigation:
+    main-menu-item:
+        label: Factory
+        url: dnc/cnc24h/factory
+        icon: icon-life-ring
+    main-menu-item1:
+        label: Device
+        url: dnc/cnc24h/device
+        icon: icon-life-ring

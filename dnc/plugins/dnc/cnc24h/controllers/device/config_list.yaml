@@ -1,0 +1,12 @@
+list: $/dnc/cnc24h/models/device/columns.yaml
+modelClass: Dnc\Cnc24h\Models\Device
+title: Device
+noRecordsMessage: 'backend::lang.list.no_records'
+showSetup: true
+showCheckboxes: true
+recordsPerPage: 20
+toolbar:
+    buttons: list_toolbar
+    search:
+        prompt: 'backend::lang.list.search_prompt'
+recordUrl: 'dnc/cnc24h/device/update/:id'

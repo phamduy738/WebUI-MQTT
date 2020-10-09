@@ -1,0 +1,21 @@
+fields:
+    name:
+        label: name
+        span: auto
+        type: text
+    serial:
+        label: serial
+        span: auto
+        type: text
+    factory:
+        label: Relation
+        nameFrom: id
+        descriptionFrom: description
+        span: auto
+        type: relation
+    status:
+        label: status
+        span: auto
+        placeholder: offline
+        default: offline
+        type: text

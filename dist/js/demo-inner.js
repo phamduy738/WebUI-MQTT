@@ -326,11 +326,21 @@ document.getElementById("userName").innerHTML = localStorage.getItem('userName')
     'sidebar-light-olive'
   ]
 
-  // $(document).ready(function() {
-  //     MQTTconnect();
-  // });
+   var bucketName = "dnctest";
+   var bucketRegion = "ap-southeast-1";
+   var IdentityPoolId = "ap-southeast-1:163d20f7-633d-423c-8aee-8025702d651b";
 
-  //var host = '13.229.90.245';
+   AWS.config.update({
+                region: bucketRegion,
+                credentials: new AWS.CognitoIdentityCredentials({
+                IdentityPoolId: IdentityPoolId
+                })
+            });
+
+            var s3 = new AWS.S3({
+                apiVersion: '2006-03-01',
+                params: {Bucket: bucketName}
+        });
   var host = 'localhost'
   var port = 9001;
   var topic = 'duy/test';
@@ -347,6 +357,7 @@ document.getElementById("userName").innerHTML = localStorage.getItem('userName')
   var data = "";
   var name = "";
   var width = 0;
+  var dataKey = "";
   var totalSize = 0
   var getUrlParameter = function getUrlParameter(sParam) {
     var sPageURL = window.location.search.substring(1),
@@ -422,9 +433,17 @@ document.getElementById("userName").innerHTML = localStorage.getItem('userName')
 
       if(topic.indexOf('/pg') != -1){
         var count = parseInt(payload);
-        width = parseInt((count/totalSize) *100);
-        console.log(width);
-      }else{
+        console.log(payload);
+        if(count != -1){
+            width = parseInt(20 + count*80/100);
+            console.log(width);
+        }else{
+            width = -1;
+        }
+       
+
+      }
+      if(topic.indexOf('/list') != -1){ 
 
         var jsonString = JSON.parse(payload)
         console.log("Topic: " + topic + ", Message payload: " + payload);
@@ -454,14 +473,38 @@ document.getElementById("userName").innerHTML = localStorage.getItem('userName')
                   return b;
                 }
               }
-          ],
-          initComplete: function(settings, json) {
-            listData =  $('#example1').DataTable().rows().data();
-            console.log(listData);
-          }
+            ],
+            initComplete: function(settings, json) {
+              listData =  $('#example1').DataTable().rows().data();
+              console.log(listData);
+            }
+
         
-        });     
-       }
+          });     
+         }
+         if(topic.indexOf('/response') != -1){ 
+            $("#overlay").fadeOut(300);
+            if (payload == "failed") {
+                alert("download failed, please try again!");
+            }else{             
+                top.location.href = payload;
+                var arr = payload.split('.com/');
+                var key_dec = decodeURIComponent(arr[1]);
+                //console.log(key_dec);
+                var params = {
+                  Bucket: 'dnctest',
+                  Key: key_dec
+
+                };
+
+                s3.deleteObject(params, function(err, data) {
+                  if (err) console.log(err, err.stack);  // error
+                  else     console.log("deleted");                 // deleted
+                });
+            }
+            
+          }
+    
      
       
   };
@@ -471,8 +514,12 @@ document.getElementById("userName").innerHTML = localStorage.getItem('userName')
   //     dataMessage = text
   //     console.log(text);
   // }
+  var fileName =  "";
+  var fileType =  "";
   document.getElementById('customFile').addEventListener('change', function(){
         var file = $('#customFile').prop('files')[0];
+        fileName = file.name;
+        fileType = file.type;
         var fr = new FileReader();
         fr.onload = function(e){
             data= e.target.result;
@@ -492,21 +539,150 @@ document.getElementById("userName").innerHTML = localStorage.getItem('userName')
         
         var id = setInterval(frame, 100);
         function frame() {
-          if (width >= 100) {
-            elem.style.width = "100%";
-            elem.innerHTML =  "100%";
-            clearInterval(id);
-            var serial = getUrlParameter('serial');
-            mqtt.unsubscribe(serial + '/pg');
-            m = 0;
-          } else {
-            //width++;
-            elem.style.width = width + "%";
-            elem.innerHTML = width + "%";
+          if (width != -1){
+              if (width >= 100) {
+                elem.style.width = "100%";
+                elem.innerHTML =  "100%";
+                clearInterval(id);
+                var serial = getUrlParameter('serial');
+                mqtt.unsubscribe(serial + '/pg');
+                m = 0;
+                var params = {
+                  Bucket: 'dnctest',
+                  Key: dataKey
+
+                };
+
+                s3.deleteObject(params, function(err, data) {
+                  if (err) console.log(err, err.stack);  // error
+                  else     console.log("deleted");                 // deleted
+                });
+              } else {
+                //width++;
+                elem.style.width = width + "%";
+                elem.innerHTML = width + "%";
+              }
+          }else{
+                elem.style.width =  "0%";
+                elem.innerHTML = "fail";
+                m = 0;
+                clearInterval(id);
+                var serial = getUrlParameter('serial');
+                mqtt.unsubscribe(serial + '/pg');
+                var params = {
+                  Bucket: 'dnctest',
+                  Key: dataKey
+
+                };
+
+                s3.deleteObject(params, function(err, data) {
+                  if (err) console.log(err, err.stack);  // error
+                  else     console.log("deleted");                 // deleted
+                });
           }
+        
         }
       }
     }
+  $('#uploadFile').click(function() {
+    var serial = getUrlParameter('serial');
+    mqtt.subscribe(serial + '/pg', {qos: 0});
+    move();
+    var files = document.getElementById('customFile').files;
+    if (files) 
+    {
+        var file = files[0];
+        var fileName = file.name;
+        var keyName =  serial + "/";
+        var fileType = file.type;
+        var fileSize = file.size;
+
+        dataKey = keyName + fileName;
+        var upload = new AWS.S3.ManagedUpload({
+          params: {
+            Bucket: bucketName,
+            Key: dataKey,
+            Body: file,
+            ACL: "public-read",
+            ContentType: fileType
+          }
+    });
+
+    var promise = upload.on('httpUploadProgress', function (progress) {
+            
+      var uploaded = parseInt((progress.loaded * 20) / progress.total);
+      console.log("Uploaded :: " + uploaded+'%');
+      //$("#progressbar").attr('value', parseInt((progress.loaded * 100) / progress.total));
+      var progressBar = document.getElementById("uploadBar");
+      width = uploaded;
+
+    
+    }).promise();
+
+    promise.then(
+        function(data) {
+          console.log("Successfully uploaded data.");
+          //console.log(data.Location);
+          //console.log(data);
+          messageValue['url'] = data.Location
+          messageValue['size'] = fileSize
+          messageValue['file_name'] = "/"+files[0].name;
+          jsonValue = JSON.stringify(messageValue);
+          topicMessage = new Paho.MQTT.Message(jsonValue);
+          topicMessage.destinationName = serial +"/upload";
+          topicMessage.qos = 0;
+          mqtt.send(topicMessage);
+        },
+        function(err) {
+            return alert("There was an error uploading your data: ", err.message);
+          }
+      );
+    }
+  });
+  $('#example1').on('click', '.myDel', function (e) {
+      e.preventDefault();
+      var serial = getUrlParameter('serial');
+      var rowIndex = $(this).closest('tr');
+      var file_name = $('#example1').DataTable().row(rowIndex).data().filename;
+      console.log(file_name);
+      $("#modal-sm .modal-body").text('Do you want to delete '+ file_name + '?');
+      $("#modal-sm").on('click', '.delete-file',function() {
+          console.log(file_name);
+          var messageDelete = {}; 
+          messageDelete['file_name'] = file_name;
+          jsonValue = JSON.stringify(messageDelete);
+          topicMessage = new Paho.MQTT.Message(jsonValue);
+          topicMessage.destinationName = serial +"/delete";
+          topicMessage.qos = 0;
+          mqtt.send(topicMessage);
+          $('#modal-sm').modal('toggle');
+      });
+    });
+    $('#example1').on('click', '.myDownload', function (e) {
+      e.preventDefault();
+      var serial = getUrlParameter('serial');
+      var rowIndex = $(this).closest('tr');
+      var file_name = $('#example1').DataTable().row(rowIndex).data().filename;
+      //console.log(file_name);
+      $("#modal-download .modal-body").text('Do you want to download '+ file_name + '?');
+      $("#modal-download").on('click', '.download-file',function() {
+          
+          $("#overlay").fadeIn(300);　
+          var messageDownload = {}; 
+          messageDownload['file_name'] = file_name;
+          console.log(messageDownload);
+          jsonValue = JSON.stringify(messageDownload);
+          topicMessage = new Paho.MQTT.Message(jsonValue);
+          topicMessage.destinationName = serial +"/download";
+          topicMessage.qos = 0;
+          mqtt.send(topicMessage);
+          mqtt.subscribe(serial + '/response', {qos: 0});
+          $('#modal-download').modal('toggle');
+          $("#modal-download").off('click', '.download-file');
+      });
+    });
+
+  /*
   $('#uploadFile').click(function() {
       localStorage.clear();
       move();
@@ -570,47 +746,10 @@ document.getElementById("userName").innerHTML = localStorage.getItem('userName')
        
       }
   });
+  */
 
 
-  $('#example1').on('click', '.myDel', function (e) {
-    e.preventDefault();
-    var serial = getUrlParameter('serial');
-    var rowIndex = $(this).closest('tr');
-    var file_name = $('#example1').DataTable().row(rowIndex).data().filename;
-    console.log(file_name);
-    $("#modal-sm .modal-body").text('Do you want to delete '+ file_name + '?');
-    $("#modal-sm").on('click', '.delete-file',function() {
-        console.log(file_name);
-        var messageDelete = {}; 
-        messageDelete['file_name'] = file_name;
-        jsonValue = JSON.stringify(messageDelete);
-        topicMessage = new Paho.MQTT.Message(jsonValue);
-        topicMessage.destinationName = serial +"/delete";
-        topicMessage.qos = 0;
-        mqtt.send(topicMessage);
-        $('#modal-sm').modal('toggle');
-    });
-  });
-  $('#example1').on('click', '.myDownload', function (e) {
-    e.preventDefault();
-    var serial = getUrlParameter('serial');
-    var rowIndex = $(this).closest('tr');
-    var file_name = $('#example1').DataTable().row(rowIndex).data().filename;
-    console.log(file_name);
-    $("#modal-download .modal-body").text('Do you want to download '+ file_name + '?');
-    $("#modal-download").on('click', '.download-file',function() {
-        console.log(file_name);
-        var messageDelete = {}; 
-        messageDelete['file_name'] = file_name;
-        jsonValue = JSON.stringify(messageDelete);
-        topicMessage = new Paho.MQTT.Message(jsonValue);
-        topicMessage.destinationName = serial +"/download";
-        topicMessage.qos = 0;
-        mqtt.send(topicMessage);
-        mqtt.subscribe(serial + '/receive', {qos: 0});
-        $('#modal-download').modal('toggle');
-    });
-  });
+  
  
  /* $('#example').on('click', '.myDownload', function () {
     var rowIndex = $(this).closest('tr');

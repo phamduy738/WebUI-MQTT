@@ -16,6 +16,8 @@
   
   <!-- Theme style -->
   <link rel="stylesheet" href="dist/css/adminlte.min.css">
+  <!-- Theme style -->
+  <link rel="stylesheet" href="dist/css/custom.css">
 
 </head>
 <body class="hold-transition sidebar-mini">
@@ -210,6 +212,7 @@
         </div>
         <!-- /.row -->
       </div>
+
       <!-- /.container-fluid -->
 
       <!-- /.modal -->
@@ -269,7 +272,11 @@
     </div>
     <strong>Copyright &copy; 2014-2020 <a href="https://adminlte.io">Cnc24h.vn</a>.</strong> All rights reserved.
   </footer>
-
+  <div id="overlay">
+        <div class="cv-spinner">
+          <span class="spinner"></span>
+        </div>
+  </div>
   <!-- Control Sidebar -->
   <aside class="control-sidebar control-sidebar-dark">
     <!-- Control sidebar content goes here -->
@@ -277,6 +284,7 @@
   <!-- /.control-sidebar -->
 </div>
 <!-- ./wrapper -->
+<script src="https://sdk.amazonaws.com/js/aws-sdk-2.357.0.min.js"></script>
 
 <!-- jQuery -->
 <script src="plugins/jquery/jquery.min.js"></script>
